@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --obsidian: #0d0d0d;
+  --ivory: #f5f0e8;
+  --champagne: #c4a574;
+  --background: var(--ivory);
+  --foreground: var(--obsidian);
+  --muted: #6b6560;
+  --border: rgba(13, 13, 13, 0.08);
+  --glass: rgba(245, 240, 232, 0.72);
+  --glow: rgba(196, 165, 116, 0.35);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-obsidian: var(--obsidian);
+  --color-ivory: var(--ivory);
+  --color-champagne: var(--champagne);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-glass: var(--glass);
+  --font-sans: var(--font-dm-sans);
+  --font-display: var(--font-cormorant);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--champagne) 35%, transparent);
+  color: var(--obsidian);
+}
+
+.gradient-premium {
+  background: linear-gradient(
+    135deg,
+    var(--obsidian) 0%,
+    #1a1814 45%,
+    color-mix(in srgb, var(--champagne) 25%, var(--obsidian)) 100%
+  );
+}
+
+.gradient-soft {
+  background: linear-gradient(
+    180deg,
+    var(--ivory) 0%,
+    color-mix(in srgb, var(--champagne) 8%, var(--ivory)) 100%
+  );
+}
+
+.glass-panel {
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in srgb, var(--champagne) 18%, transparent);
+  box-shadow:
+    0 4px 24px rgba(13, 13, 13, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.glow-champagne {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--champagne) 20%, transparent),
+    0 8px 32px var(--glow);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--obsidian), var(--champagne));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--obsidian) 6%, var(--ivory)) 25%,
+    color-mix(in srgb, var(--champagne) 12%, var(--ivory)) 50%,
+    color-mix(in srgb, var(--obsidian) 6%, var(--ivory)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
