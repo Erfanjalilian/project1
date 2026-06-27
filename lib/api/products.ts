@@ -1,18 +1,11 @@
-import type { Prisma } from "@/app/generated/prisma/client";
-import { prisma } from "@/lib/prisma";
+import { readData } from "@/lib/jsonStore";
 import {
   serializeProduct,
   serializeProductSummary,
 } from "@/lib/api/serializers";
 import type { ProductFilters } from "@/types/product";
 
-const productInclude = {
-  brand: true,
-  category: true,
-  images: { orderBy: { order: "asc" as const } },
-  colors: true,
-  sizes: true,
-} satisfies Prisma.ProductInclude;
+// productInclude removed: using JSON file storage instead of Prisma
 
 export function parseProductFilters(searchParams: URLSearchParams): ProductFilters {
   return {
@@ -36,69 +29,64 @@ export async function getProducts(filters: ProductFilters) {
   const page = Math.max(filters.page ?? 1, 1);
   const limit = Math.min(Math.max(filters.limit ?? 12, 1), 48);
   const skip = (page - 1) * limit;
+  // Read products from JSON store
+  const products = await readData<any[]>("products.json", []);
 
-  const where: Prisma.ProductWhereInput = {};
+  let results = products.slice();
 
   if (filters.search) {
-    where.OR = [
-      { name: { contains: filters.search } },
-      { description: { contains: filters.search } },
-    ];
+    const q = filters.search.toLowerCase();
+    results = results.filter(
+      (p) =>
+        String(p.name).toLowerCase().includes(q) ||
+        String(p.description).toLowerCase().includes(q),
+    );
   }
 
   if (filters.brand) {
-    where.brand = { slug: filters.brand };
+    results = results.filter((p) => p.brand?.slug === filters.brand);
   }
 
-  if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-    where.price = {
-      ...(filters.minPrice !== undefined ? { gte: filters.minPrice } : {}),
-      ...(filters.maxPrice !== undefined ? { lte: filters.maxPrice } : {}),
-    };
+  if (filters.minPrice !== undefined) {
+    results = results.filter((p) => p.price >= filters.minPrice!);
+  }
+
+  if (filters.maxPrice !== undefined) {
+    results = results.filter((p) => p.price <= filters.maxPrice!);
   }
 
   if (filters.bestSelling) {
-    where.isBestSeller = true;
+    results = results.filter((p) => p.isBestSeller === true);
   }
-
-  let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
 
   switch (filters.sort) {
     case "price-asc":
-      orderBy = { price: "asc" };
+      results.sort((a, b) => a.price - b.price);
       break;
     case "price-desc":
-      orderBy = { price: "desc" };
+      results.sort((a, b) => b.price - a.price);
       break;
     case "discount":
-      orderBy = { discountPercent: "desc" };
+      results.sort((a, b) => b.discountPercent - a.discountPercent);
       break;
     case "bestselling":
-      orderBy = { isBestSeller: "desc" };
+      results.sort((a, b) => (b.isBestSeller === true ? 1 : 0) - (a.isBestSeller === true ? 1 : 0));
       break;
     case "newest":
     default:
       if (filters.highestDiscount) {
-        orderBy = { discountPercent: "desc" };
+        results.sort((a, b) => b.discountPercent - a.discountPercent);
       } else {
-        orderBy = { createdAt: "desc" };
+        results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       }
       break;
   }
 
-  const [products, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: productInclude,
-      orderBy,
-      skip,
-      take: limit,
-    }),
-    prisma.product.count({ where }),
-  ]);
+  const total = results.length;
+  const paginated = results.slice(skip, skip + limit);
 
   return {
-    products: products.map(serializeProductSummary),
+    products: paginated.map(serializeProductSummary),
     meta: {
       page,
       limit,
@@ -110,10 +98,8 @@ export async function getProducts(filters: ProductFilters) {
 }
 
 export async function getProductBySlug(slug: string) {
-  const product = await prisma.product.findUnique({
-    where: { slug },
-    include: productInclude,
-  });
+  const products = await readData<any[]>("products.json", []);
+  const product = products.find((p) => p.slug === slug);
 
   return product ? serializeProduct(product) : null;
 }
@@ -123,59 +109,47 @@ export async function getRelatedProducts(
   categoryId: string,
   limit = 4,
 ) {
-  const products = await prisma.product.findMany({
-    where: {
-      categoryId,
-      NOT: { id: productId },
-    },
-    include: productInclude,
-    orderBy: { isBestSeller: "desc" },
-    take: limit,
-  });
+  const products = await readData<any[]>("products.json", []);
+  const results = products
+    .filter((p) => p.category?.id === categoryId && p.id !== productId)
+    .sort((a, b) => (b.isBestSeller === true ? 1 : 0) - (a.isBestSeller === true ? 1 : 0))
+    .slice(0, limit);
 
-  return products.map(serializeProductSummary);
+  return results.map(serializeProductSummary);
 }
 
 export async function getBestSellers(limit = 8) {
-  const products = await prisma.product.findMany({
-    where: { isBestSeller: true },
-    include: productInclude,
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-
-  return products.map(serializeProductSummary);
+  const products = await readData<any[]>("products.json", []);
+  return products
+    .filter((p) => p.isBestSeller === true)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit)
+    .map(serializeProductSummary);
 }
 
 export async function getNewArrivals(limit = 8) {
-  const products = await prisma.product.findMany({
-    where: { isNewArrival: true },
-    include: productInclude,
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-
-  return products.map(serializeProductSummary);
+  const products = await readData<any[]>("products.json", []);
+  return products
+    .filter((p) => p.isNewArrival === true)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit)
+    .map(serializeProductSummary);
 }
 
 export async function getDiscountedProducts(limit = 8) {
-  const products = await prisma.product.findMany({
-    where: { discountPercent: { gt: 0 } },
-    include: productInclude,
-    orderBy: { discountPercent: "desc" },
-    take: limit,
-  });
-
-  return products.map(serializeProductSummary);
+  const products = await readData<any[]>("products.json", []);
+  return products
+    .filter((p) => Number(p.discountPercent) > 0)
+    .sort((a, b) => b.discountPercent - a.discountPercent)
+    .slice(0, limit)
+    .map(serializeProductSummary);
 }
 
 export async function getFeaturedProducts(limit = 8) {
-  const products = await prisma.product.findMany({
-    where: { isFeatured: true },
-    include: productInclude,
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-
-  return products.map(serializeProductSummary);
+  const products = await readData<any[]>("products.json", []);
+  return products
+    .filter((p) => p.isFeatured === true)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit)
+    .map(serializeProductSummary);
 }

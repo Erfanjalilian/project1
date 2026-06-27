@@ -23,8 +23,14 @@ type PrismaProduct = {
 export function serializeProduct(product: PrismaProduct): Product {
   return {
     ...product,
-    createdAt: product.createdAt.toISOString(),
-    updatedAt: product.updatedAt.toISOString(),
+    createdAt:
+      typeof product.createdAt === "string"
+        ? product.createdAt
+        : product.createdAt.toISOString(),
+    updatedAt:
+      typeof product.updatedAt === "string"
+        ? product.updatedAt
+        : product.updatedAt.toISOString(),
   };
 }
 

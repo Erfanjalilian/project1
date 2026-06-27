@@ -1,13 +1,13 @@
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 import type { Product, ProductCategory, ProductBrand } from "@/types/product";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export async function fetchApi<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
 ): Promise<ApiResponse<T>> {
-  const url = `${BASE_URL}/api${endpoint}`;
+  const url = `${BASE_URL}/api${endpoint}`.replace(/(?<!:)\/\/+/g, "/");
 
   try {
     const response = await fetch(url, {
@@ -22,7 +22,16 @@ export async function fetchApi<T>(
       throw new Error(`API error: ${response.status}`);
     }
 
-    return await response.json();
+    const payload = await response.json();
+    if (payload && typeof payload === "object" && "success" in payload) {
+      return payload as ApiResponse<T>;
+    }
+
+    return {
+      success: true,
+      message: "Success",
+      data: payload as T,
+    };
   } catch (error) {
     console.error(`Failed to fetch ${endpoint}:`, error);
     throw error;

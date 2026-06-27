@@ -2,12 +2,13 @@ import {
   errorResponse,
   notFoundResponse,
   successResponse,
+  badRequestResponse,
 } from "@/lib/api/response";
-import { prisma } from "@/lib/prisma";
+import { readData, writeData } from "@/lib/jsonStore";
 
 export async function GET() {
   try {
-    const content = await prisma.aboutContent.findFirst();
+    const content = await readData<any>("about.json", null as any);
 
     if (!content) {
       return notFoundResponse("About content not found");
@@ -22,5 +23,28 @@ export async function GET() {
   } catch (error) {
     console.error("[GET /api/about]", error);
     return errorResponse("Failed to fetch about content");
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    if (!body) return badRequestResponse("Missing request body");
+
+    await writeData("about.json", body);
+    return successResponse(body, "About content saved", 201);
+  } catch (err) {
+    console.error("[POST /api/about]", err);
+    return errorResponse("Failed to save about content");
+  }
+}
+
+export async function DELETE() {
+  try {
+    await writeData("about.json", null as any);
+    return successResponse(null, "About content deleted");
+  } catch (err) {
+    console.error("[DELETE /api/about]", err);
+    return errorResponse("Failed to delete about content");
   }
 }

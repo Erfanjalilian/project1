@@ -1,0 +1,5 @@
+[
+  { "id": "cat-1", "name": "Outerwear", "slug": "outerwear" },
+  { "id": "cat-2", "name": "Evening Wear", "slug": "evening-wear" },
+  { "id": "cat-3", "name": "Accessories", "slug": "accessories" }
+]
