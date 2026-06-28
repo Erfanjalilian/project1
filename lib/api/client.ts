@@ -1,5 +1,5 @@
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
-import type { Product, ProductCategory, ProductBrand } from "@/types/product";
+import type { Product, ProductCategory, ProductBrand, ProductSummary } from "@/types/product";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -55,8 +55,14 @@ export async function fetchProducts(
   return fetchApi<Product[]>(`/products${query}`);
 }
 
-export async function fetchProductBySlug(slug: string): Promise<ApiResponse<Product>> {
-  return fetchApi<Product>(`/products/${slug}`);
+export async function fetchProductBySlug(
+  slug: string,
+  includeRelated = false,
+): Promise<ApiResponse<Product | { product: Product; relatedProducts: ProductSummary[] }>> {
+  const query = includeRelated ? "?related=true" : "";
+  return fetchApi<Product | { product: Product; relatedProducts: ProductSummary[] }>(
+    `/products/${slug}${query}`,
+  );
 }
 
 export async function fetchCategories(): Promise<ApiResponse<ProductCategory[]>> {

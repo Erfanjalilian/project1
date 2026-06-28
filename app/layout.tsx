@@ -1,18 +1,8 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
 
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
+const cormorantClassName = "font-[Cormorant_Garamond,serif]";
+const dmSansClassName = "font-[DM_Sans,sans-serif]";
 
 export const metadata: Metadata = {
   
@@ -26,12 +16,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log("hi")
   return (
-    <html
-      lang="en"
-      className={`${cormorant.variable} ${dmSans.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`h-full antialiased ${cormorantClassName} ${dmSansClassName}`}>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
       </body>

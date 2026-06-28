@@ -86,7 +86,7 @@ export function Header() {
           <Link
             href="/cart"
             className="relative rounded-full p-2.5 text-obsidian transition-colors hover:bg-obsidian/5"
-            aria-label={`Shopping cart, ${totalItems} items`}
+            aria-label="Shopping cart"
           >
             <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
             {totalItems > 0 ? (

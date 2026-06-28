@@ -6,16 +6,18 @@ import { useParams } from "next/navigation";
 import { PageTransition } from "@/components/ui/PageTransition";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
+import { ProductCard } from "@/components/home/ProductCard";
 import { fetchProductBySlug } from "@/lib/api/client";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/utils/format";
-import type { Product, ProductColor, ProductSize } from "@/types/product";
+import type { Product, ProductColor, ProductSize, ProductSummary } from "@/types/product";
 
 export default function ProductPage() {
   const params = useParams();
   const slug = params.slug as string;
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<ProductSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<ProductColor | null>(null);
@@ -30,15 +32,27 @@ export default function ProductPage() {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetchProductBySlug(slug);
+        const response = await fetchProductBySlug(slug, true);
 
         if (response.success) {
-          setProduct(response.data);
-          if (response.data.colors.length > 0) {
-            setSelectedColor(response.data.colors[0]);
+          const payload = response.data;
+          const productData =
+            typeof payload === "object" && payload && "product" in payload
+              ? payload.product
+              : payload;
+          const related =
+            typeof payload === "object" && payload && "relatedProducts" in payload
+              ? payload.relatedProducts
+              : [];
+
+          setProduct(productData);
+          setRelatedProducts(related);
+
+          if (productData.colors.length > 0) {
+            setSelectedColor(productData.colors[0]);
           }
-          if (response.data.sizes.length > 0) {
-            setSelectedSize(response.data.sizes[0]);
+          if (productData.sizes.length > 0) {
+            setSelectedSize(productData.sizes[0]);
           }
         } else {
           setError("Product not found");
@@ -59,14 +73,12 @@ export default function ProductPage() {
   const handleAddToCart = () => {
     if (!product || !selectedColor || !selectedSize) return;
 
-    const finalPrice =
-      product.price * (1 - product.discountPercent / 100);
-
     addItem({
       productId: product.id,
       name: product.name,
       slug: product.slug,
-      price: finalPrice,
+      price: product.price,
+      originalPrice: product.price,
       discountPercent: product.discountPercent,
       quantity,
       color: selectedColor,
@@ -289,6 +301,27 @@ export default function ProductPage() {
             </div>
           </div>
         </div>
+
+        {relatedProducts.length > 0 && (
+          <section className="mt-16 border-t border-champagne/10 pt-12">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.28em] text-champagne">
+                  You may also like
+                </p>
+                <h2 className="mt-2 font-display text-3xl font-light text-obsidian">
+                  Similar Products
+                </h2>
+              </div>
+            </div>
+
+            <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+              {relatedProducts.map((item) => (
+                <ProductCard key={item.id} product={item} />
+              ))}
+            </div>
+          </section>
+        )}
       </Container>
     </PageTransition>
   );

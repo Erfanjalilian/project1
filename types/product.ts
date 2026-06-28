@@ -81,6 +81,7 @@ export type CartItem = {
   name: string;
   image: string;
   price: number;
+  originalPrice?: number;
   discountPercent: number;
   color: ProductColor;
   size: ProductSize;

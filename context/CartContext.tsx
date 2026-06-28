@@ -17,6 +17,7 @@ type AddToCartPayload = {
   name: string;
   image: string;
   price: number;
+  originalPrice?: number;
   discountPercent: number;
   color: ProductColor;
   size: ProductSize;
@@ -48,25 +49,40 @@ function getItemKey(productId: string, colorId: string, sizeId: string) {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setItems(JSON.parse(stored) as CartItem[]);
-      }
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored) as Array<CartItem & { originalPrice?: number }>;
+      const normalizedItems = parsed.map((item) => {
+        const inferredOriginalPrice =
+          typeof item.originalPrice === "number" && item.originalPrice > 0
+            ? item.originalPrice
+            : item.discountPercent > 0 && item.price > 0
+              ? item.price / (1 - item.discountPercent / 100)
+              : item.price;
+
+        return {
+          ...item,
+          price: inferredOriginalPrice,
+          originalPrice: inferredOriginalPrice,
+        };
+      });
+
+      setItems(normalizedItems);
     } catch {
       setItems([]);
-    } finally {
-      setIsHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items, isHydrated]);
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [items]);
 
   const addItem = useCallback((payload: AddToCartPayload) => {
     setItems((current) => {
@@ -99,6 +115,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           name: payload.name,
           image: payload.image,
           price: payload.price,
+          originalPrice: payload.originalPrice ?? payload.price,
           discountPercent: payload.discountPercent,
           color: payload.color,
           size: payload.size,
@@ -154,13 +171,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const subtotal = useMemo(
     () =>
-      items.reduce(
-        (sum, item) =>
-          sum +
-          calculateDiscountedPrice(item.price, item.discountPercent) *
-            item.quantity,
-        0,
-      ),
+      items.reduce((sum, item) => {
+        const unitPrice = calculateDiscountedPrice(
+          item.originalPrice ?? item.price,
+          item.discountPercent,
+        );
+        return sum + unitPrice * item.quantity;
+      }, 0),
     [items],
   );
 
